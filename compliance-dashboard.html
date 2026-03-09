@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>컴플라이언스 현황 관리 시스템</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d1117; --surface:#161b22; --surface2:#1c2330;
+  --border:#30363d; --border-soft:#21262d;
+  --text:#e6edf3; --text-soft:#8b949e; --text-muted:#484f58;
+  --ehs:#3fb950; --ehs-bg:rgba(63,185,80,.08); --ehs-border:rgba(63,185,80,.25);
+  --pipa:#58a6ff; --pipa-bg:rgba(88,166,255,.08); --pipa-border:rgba(88,166,255,.25);
+  --fair:#f0b429; --fair-bg:rgba(240,180,41,.08); --fair-border:rgba(240,180,41,.25);
+  --red:#f85149; --red-bg:rgba(248,81,73,.1);
+  --yellow:#e3b341; --yellow-bg:rgba(227,179,65,.1);
+  --green:#3fb950; --green-bg:rgba(63,185,80,.1);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:13px;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:54px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200;}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-badge{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.15em;background:linear-gradient(135deg,#1a3a2a,#0d2818);color:var(--ehs);border:1px solid var(--ehs-border);padding:3px 8px;border-radius:4px;}
+.brand-name{font-size:14px;font-weight:600;}
+.brand-sub{font-size:11px;color:var(--text-soft);border-left:1px solid var(--border);padding-left:10px;margin-left:2px;}
+.mode-toggle{display:flex;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px;}
+.mode-btn{padding:5px 16px;border-radius:6px;border:none;font-family:'Noto Sans KR',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;color:var(--text-soft);background:transparent;}
+.mode-btn.active{background:var(--surface2);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.topbar-right{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);}
+
+.view{display:none;}.view.active{display:block;}
+
+/* 팀 입력 */
+.input-layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 54px);}
+.team-sidebar{background:var(--surface);border-right:1px solid var(--border);padding:16px 0;position:sticky;top:54px;height:calc(100vh - 54px);overflow-y:auto;}
+.sidebar-label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);padding:0 16px;margin:14px 0 5px;}
+.team-item{display:flex;align-items:center;gap:9px;padding:9px 16px;cursor:pointer;transition:all .15s;border-left:3px solid transparent;color:var(--text-soft);}
+.team-item:hover{background:rgba(255,255,255,.04);color:var(--text);}
+.team-item.active{border-left-color:var(--pipa);background:var(--pipa-bg);color:var(--text);}
+.team-avatar{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.team-info{flex:1;}
+.team-name-s{font-size:12px;font-weight:500;}
+.team-status-s{font-size:10px;color:var(--text-muted);margin-top:1px;}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.dot-g{background:var(--green);}.dot-y{background:var(--yellow);}.dot-r{background:var(--red);}.dot-e{background:var(--text-muted);}
+
+.input-panel{padding:28px 32px;background:var(--bg);}
+.panel-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid var(--border);}
+.panel-team-info{display:flex;align-items:center;gap:12px;}
+.panel-avatar{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:22px;}
+.panel-team-name{font-size:18px;font-weight:700;letter-spacing:-.02em;}
+.panel-team-sub{font-size:11px;color:var(--text-soft);margin-top:2px;}
+.panel-period{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:5px 10px;}
+
+.cat-tabs{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap;}
+.cat-tab{display:flex;align-items:center;gap:6px;padding:7px 16px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-soft);cursor:pointer;font-size:12px;font-weight:500;transition:all .2s;font-family:'Noto Sans KR',sans-serif;}
+.cat-tab .cdot{width:6px;height:6px;border-radius:50%;display:inline-block;}
+.cat-tab.act-ehs{border-color:var(--ehs-border);background:var(--ehs-bg);color:var(--ehs);}
+.cat-tab.act-pipa{border-color:var(--pipa-border);background:var(--pipa-bg);color:var(--pipa);}
+.cat-tab.act-fair{border-color:var(--fair-border);background:var(--fair-bg);color:var(--fair);}
+.cat-tab.inactive-tab{opacity:.45;}
+
+.cat-panel{display:none;animation:fadeUp .2s ease;}.cat-panel.active{display:block;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.cat-panel-header{padding:13px 18px;border-radius:9px 9px 0 0;border:1px solid;margin-bottom:-1px;display:flex;align-items:center;justify-content:space-between;}
+.cat-panel-header.ehs{background:var(--ehs-bg);border-color:var(--ehs-border);}
+.cat-panel-header.pipa{background:var(--pipa-bg);border-color:var(--pipa-border);}
+.cat-panel-header.fair{background:var(--fair-bg);border-color:var(--fair-border);}
+.cat-label-h{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}
+.cat-label-h.ehs{color:var(--ehs);}.cat-label-h.pipa{color:var(--pipa);}.cat-label-h.fair{color:var(--fair);}
+.cat-score-badge{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;}
+.cat-formula-sub{font-size:10px;color:var(--text-muted);margin-top:2px;}
+
+.metrics-grid{border:1px solid var(--border);border-radius:0 0 9px 9px;overflow:hidden;background:var(--surface);}
+.metric-row{display:grid;grid-template-columns:1fr 180px 90px;align-items:center;padding:13px 18px;border-bottom:1px solid var(--border-soft);gap:14px;transition:background .15s;}
+.metric-row:hover{background:var(--surface2);}
+.metric-name{font-size:13px;color:var(--text);font-weight:500;}
+.metric-hint{font-size:10px;color:var(--text-muted);margin-top:2px;}
+.metric-formula-tag{display:inline-block;font-family:'DM Mono',monospace;font-size:9px;color:var(--text-muted);background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:1px 5px;margin-top:3px;}
+.minput-wrap{display:flex;align-items:center;gap:6px;}
+.minput{width:100%;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;outline:none;transition:border-color .2s;text-align:right;}
+.minput:focus{border-color:var(--pipa);}
+.munit{font-size:11px;color:var(--text-muted);white-space:nowrap;min-width:22px;}
+.mstatus{text-align:center;}
+.sp{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.sp-g{background:var(--green-bg);color:var(--green);}
+.sp-y{background:var(--yellow-bg);color:var(--yellow);}
+.sp-r{background:var(--red-bg);color:var(--red);}
+.sp-n{background:var(--surface2);color:var(--text-muted);}
+.memo-row{padding:12px 18px;border-top:1px solid var(--border);}
+.memo-input{width:100%;padding:8px 11px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:12px;resize:vertical;min-height:50px;outline:none;}
+.memo-input:focus{border-color:var(--pipa);}
+.memo-input::placeholder{color:var(--text-muted);}
+.no-metrics{padding:28px;text-align:center;color:var(--text-muted);font-size:12px;line-height:2;}
+.save-row{display:flex;align-items:center;justify-content:space-between;margin-top:18px;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:9px;}
+.save-info{font-size:11px;color:var(--text-muted);}
+.save-info b{color:var(--text-soft);}
+.btn-save{padding:8px 22px;border-radius:7px;border:none;background:linear-gradient(135deg,#238636,#1a7030);color:#fff;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(35,134,54,.3);}
+.btn-save:hover{background:linear-gradient(135deg,#2ea043,#238636);transform:translateY(-1px);}
+
+/* 설정 */
+.settings-wrap{padding:28px 32px;}
+.settings-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;}
+.settings-title{font-family:'Playfair Display',serif;font-size:20px;}
+.settings-sub{font-size:12px;color:var(--text-soft);margin-top:3px;}
+.settings-notice{background:var(--pipa-bg);border:1px solid var(--pipa-border);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--text-soft);margin-bottom:20px;line-height:1.7;}
+.settings-notice b{color:var(--pipa);}
+.team-config-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:12px;}
+.team-config-header{display:flex;align-items:center;gap:10px;padding:13px 18px;background:var(--surface2);border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;}
+.team-config-header:hover{background:rgba(255,255,255,.04);}
+.tch-name{font-size:14px;font-weight:600;flex:1;}
+.tch-count{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);margin-right:8px;}
+.tch-toggle{font-size:11px;color:var(--text-muted);transition:transform .2s;}
+.tch-toggle.open{transform:rotate(90deg);}
+.team-config-body{display:none;padding:18px;}
+.team-config-body.open{display:block;}
+.cat-config-section{margin-bottom:18px;}
+.cat-config-section:last-child{margin-bottom:0;}
+.cat-config-title{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;}
+.metrics-checklist{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.metric-check{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .15s;}
+.metric-check:hover{border-color:var(--pipa-border);}
+.metric-check.checked{border-color:var(--pipa-border);background:rgba(88,166,255,.05);}
+.metric-check input[type=checkbox]{margin-top:2px;accent-color:var(--pipa);flex-shrink:0;cursor:pointer;}
+.mc-info{flex:1;}
+.mc-name{font-size:12px;font-weight:500;color:var(--text);}
+.mc-hint{font-size:10px;color:var(--text-muted);margin-top:1px;}
+.mc-formula{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-muted);margin-top:3px;}
+.btn-apply{padding:8px 22px;border-radius:7px;border:none;background:var(--pipa);color:#0d1117;font-family:'Noto Sans KR',sans-serif;font-size:12px;font-weight:700;cursor:pointer;}
+.btn-apply:hover{opacity:.85;}
+
+/* 대시보드 */
+.dashboard{padding:26px 30px;}
+.dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.dash-title{font-family:'Playfair Display',serif;font-size:22px;letter-spacing:-.02em;}
+.dash-title span{color:var(--pipa);}
+.dash-period{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);margin-top:3px;}
+.btn-refresh{padding:6px 14px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-soft);font-family:'Noto Sans KR',sans-serif;font-size:12px;cursor:pointer;transition:all .2s;}
+.btn-refresh:hover{border-color:var(--pipa);color:var(--pipa);}
+.summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.summary-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;transition:all .2s;}
+.summary-card:hover{border-color:var(--pipa-border);transform:translateY(-1px);}
+.sc-label{font-size:10px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:7px;}
+.sc-value{font-family:'DM Mono',monospace;font-size:26px;font-weight:500;line-height:1;}
+.sc-sub{font-size:11px;color:var(--text-soft);margin-top:5px;}
+.sec-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.sec-title{font-size:13px;font-weight:700;}
+.sec-rule{flex:1;height:1px;background:var(--border);}
+.team-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:20px;}
+.ttable{width:100%;border-collapse:collapse;}
+.ttable th{padding:10px 14px;text-align:left;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);background:var(--surface2);border-bottom:1px solid var(--border);}
+.ttable td{padding:12px 14px;border-bottom:1px solid var(--border-soft);font-size:13px;color:var(--text-soft);vertical-align:middle;}
+.ttable tr:last-child td{border-bottom:none;}
+.ttable tr:hover td{background:rgba(255,255,255,.02);}
+.tname-cell{display:flex;align-items:center;gap:8px;color:var(--text)!important;font-weight:500;}
+.sm-avatar{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;}
+.sbar-wrap{display:flex;align-items:center;gap:7px;}
+.sbar{flex:1;height:5px;background:var(--bg);border-radius:3px;overflow:hidden;min-width:50px;}
+.sbar-fill{height:100%;border-radius:3px;transition:width .8s cubic-bezier(.4,0,.2,1);}
+.sf-g{background:var(--green);}.sf-y{background:var(--yellow);}.sf-r{background:var(--red);}
+.snum{font-family:'DM Mono',monospace;font-size:11px;min-width:28px;text-align:right;}
+.na-cell{color:var(--text-muted);font-size:11px;}
+.bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.hm-cell{height:38px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:13px;font-weight:500;transition:all .3s;cursor:default;}
+.hm-cell:hover{transform:scale(1.04);position:relative;z-index:1;}
+.hm-g{background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.2);}
+.hm-y{background:rgba(227,179,65,.15);color:var(--yellow);border:1px solid rgba(227,179,65,.2);}
+.hm-r{background:rgba(248,81,73,.15);color:var(--red);border:1px solid rgba(248,81,73,.2);}
+.hm-e{background:var(--surface2);color:var(--text-muted);border:1px solid var(--border);font-size:10px;}
+.alert-list{display:flex;flex-direction:column;gap:7px;}
+.alert-item{display:flex;align-items:flex-start;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:11px 14px;}
+.alert-item.al-r{border-left:3px solid var(--red);}.alert-item.al-y{border-left:3px solid var(--yellow);}
+.al-icon{font-size:14px;margin-top:1px;flex-shrink:0;}
+.al-text{font-size:12px;color:var(--text-soft);line-height:1.6;flex:1;}
+.al-text b{color:var(--text);}
+.al-time{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);flex-shrink:0;}
+.empty-state{text-align:center;padding:32px 16px;color:var(--text-muted);font-size:12px;line-height:2;}
+
+.toast{position:fixed;bottom:22px;right:22px;background:var(--surface);border:1px solid var(--green-bg);color:var(--green);border-radius:8px;padding:11px 18px;font-size:13px;font-weight:500;z-index:999;box-shadow:0 8px 24px rgba(0,0,0,.4);transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.4,0,.2,1);display:flex;align-items:center;gap:7px;}
+.toast.show{transform:translateY(0);opacity:1;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="brand-badge">COMPLIANCE</span>
+    <span class="brand-name">컴플라이언스 현황 관리</span>
+    <span class="brand-sub">SK Chemical Compliance팀</span>
+  </div>
+  <div class="mode-toggle">
+    <button class="mode-btn active" onclick="switchMode('input',this)">📝 팀 입력</button>
+    <button class="mode-btn" onclick="switchMode('settings',this)">⚙️ 항목 설정</button>
+    <button class="mode-btn" onclick="switchMode('dashboard',this)">📊 대시보드</button>
+  </div>
+  <div class="topbar-right" id="topbarTime"></div>
+</div>
+
+<!-- 팀 입력 -->
+<div class="view active" id="view-input">
+  <div class="input-layout">
+    <nav class="team-sidebar">
+      <div class="sidebar-label">팀 선택</div>
+      <div id="teamSidebar"></div>
+    </nav>
+    <div class="input-panel" id="inputPanel"></div>
+  </div>
+</div>
+
+<!-- 항목 설정 -->
+<div class="view" id="view-settings">
+  <div class="settings-wrap">
+    <div class="settings-header">
+      <div>
+        <div class="settings-title">팀별 적용 항목 설정</div>
+        <div class="settings-sub">각 팀에 해당하는 컴플라이언스 점검 항목을 선택합니다.</div>
+      </div>
+      <button class="btn-apply" onclick="applySettings()">✓ 설정 저장</button>
+    </div>
+    <div class="settings-notice">
+      <b>💡 사용 방법</b>: 팀명을 클릭해 펼친 후, 해당 팀에 <b>실제로 적용되는 항목만</b> 체크하세요.
+      체크된 항목만 입력 화면에 표시되고, 점수 계산에도 해당 항목만 반영됩니다.
+    </div>
+    <div id="settingsBody"></div>
+  </div>
+</div>
+
+<!-- 대시보드 -->
+<div class="view" id="view-dashboard">
+  <div class="dashboard">
+    <div class="dash-header">
+      <div>
+        <div class="dash-title">컴플라이언스 <span>현황 대시보드</span></div>
+        <div class="dash-period" id="dashPeriod"></div>
+      </div>
+      <button class="btn-refresh" onclick="renderDashboard()">↻ 새로고침</button>
+    </div>
+    <div class="summary-row" id="summaryRow"></div>
+    <div class="sec-header"><span class="sec-title">팀별 종합 현황</span><div class="sec-rule"></div></div>
+    <div class="team-table-wrap">
+      <table class="ttable">
+        <thead><tr>
+          <th>팀</th><th>EHS 환경·안전</th><th>PIPA 개인정보</th><th>공정거래·하도급</th><th>종합 점수</th><th>마지막 입력</th>
+        </tr></thead>
+        <tbody id="teamTableBody"></tbody>
+      </table>
+    </div>
+    <div class="bottom-grid">
+      <div>
+        <div class="sec-header"><span class="sec-title">리스크 히트맵</span><div class="sec-rule"></div></div>
+        <div id="heatmapWrap"></div>
+      </div>
+      <div>
+        <div class="sec-header"><span class="sec-title">주의 / 미입력 알림</span><div class="sec-rule"></div></div>
+        <div id="alertList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">✅ <span id="toastMsg"></span></div>
+
+<script>
+const TEAMS = [
+  { id:'purchase',   name:'구매팀',    emoji:'🛒', color:'#d2a679', bg:'#2a1f14' },
+  { id:'production', name:'생산팀',    emoji:'🏭', color:'#79c5d2', bg:'#142022' },
+  { id:'rd',         name:'연구개발팀', emoji:'🔬', color:'#a879d2', bg:'#1e1428' },
+  { id:'sales',      name:'영업팀',    emoji:'📈', color:'#79d2a0', bg:'#14221c' },
+  { id:'hr',         name:'인사팀',    emoji:'👥', color:'#d27979', bg:'#221414' },
+  { id:'finance',    name:'재무팀',    emoji:'💰', color:'#d2c879', bg:'#22201a' },
+];
+
+const ALL_METRICS = {
+  ehs: {
+    label:'EHS 환경·안전', cls:'ehs', color:'var(--ehs)',
+    items: [
+      { id:'edu_rate',    name:'안전교육 이수율',         unit:'%',  hint:'전체 직원 대비',    formula:'>=90 양호 / >=70 주의',   good:90, warn:70, invert:false },
+      { id:'incident',    name:'사고·아차사고 건수',       unit:'건', hint:'당월 발생',         formula:'0 양호 / <=2 주의',        good:0,  warn:2,  invert:true  },
+      { id:'env_viol',    name:'환경법령 위반 건수',       unit:'건', hint:'행정처분 포함',     formula:'0 양호 / <=1 주의',        good:0,  warn:1,  invert:true  },
+      { id:'risk_assess', name:'위험성평가 완료율',        unit:'%',  hint:'전체 공정 대비',    formula:'>=95 양호 / >=80 주의',   good:95, warn:80, invert:false },
+      { id:'chem_manage', name:'화학물질 관리대장 갱신율', unit:'%',  hint:'분기 기준',         formula:'>=100 양호 / >=90 주의',  good:100,warn:90, invert:false },
+      { id:'waste_rate',  name:'폐수·폐기물 기준 초과',   unit:'건', hint:'당월 법령 초과',    formula:'0 양호 / <=1 주의',        good:0,  warn:1,  invert:true  },
+    ]
+  },
+  pipa: {
+    label:'PIPA 개인정보보호', cls:'pipa', color:'var(--pipa)',
+    items: [
+      { id:'consent_rate',name:'동의서 취득율',            unit:'%',  hint:'개인정보 처리 건 대비', formula:'100 양호 / >=95 주의',  good:100,warn:95, invert:false },
+      { id:'leak',        name:'개인정보 유출 건수',        unit:'건', hint:'잠재적 유출 포함',      formula:'0 양호 / 1 이상 위반',  good:0,  warn:0,  invert:true  },
+      { id:'train_rate',  name:'담당자 교육 이수율',        unit:'%',  hint:'개인정보 취급자 대비',  formula:'100 양호 / >=90 주의',  good:100,warn:90, invert:false },
+      { id:'pia_done',    name:'영향평가 이행 건수',        unit:'건', hint:'신규 시스템 구축 시',   formula:'기록용 (점수 제외)',     good:null,warn:null,invert:false},
+      { id:'retention',   name:'보유기간 초과 데이터',      unit:'건', hint:'파기 미이행 건수',      formula:'0 양호 / <=2 주의',     good:0,  warn:2,  invert:true  },
+      { id:'third_party', name:'제3자 제공 동의 누락',      unit:'건', hint:'당월 발생',             formula:'0 양호 / 1 이상 위반',  good:0,  warn:0,  invert:true  },
+    ]
+  },
+  fair: {
+    label:'공정거래·하도급', cls:'fair', color:'var(--fair)',
+    items: [
+      { id:'pay_delay',   name:'하도급 대금 지연 건수',    unit:'건', hint:'법정기일 초과',         formula:'0 양호 / <=1 주의',     good:0,  warn:1,  invert:true  },
+      { id:'std_contract',name:'표준계약서 사용율',         unit:'%',  hint:'신규 계약 대비',        formula:'100 양호 / >=90 주의',  good:100,warn:90, invert:false },
+      { id:'fair_edu',    name:'공정거래 교육 이수율',      unit:'%',  hint:'해당 부서원 대비',      formula:'100 양호 / >=80 주의',  good:100,warn:80, invert:false },
+      { id:'doc_issue',   name:'서면발급 준수율',           unit:'%',  hint:'계약 체결 건 대비',     formula:'100 양호 / >=95 주의',  good:100,warn:95, invert:false },
+      { id:'rebate',      name:'부당 이익 제공 건수',       unit:'건', hint:'리베이트 등',           formula:'0 양호 / 1 이상 위반',  good:0,  warn:0,  invert:true  },
+      { id:'dom_abuse',   name:'기술자료 요구 건수',        unit:'건', hint:'부당 요구 포함',        formula:'0 양호 / 1 이상 위반',  good:0,  warn:0,  invert:true  },
+    ]
+  }
+};
+
+// 팀별 활성 항목 기본값
+let teamActive = {
+  purchase:   { ehs:['edu_rate','incident'],                                           pipa:['consent_rate','third_party'],                        fair:['pay_delay','std_contract','doc_issue','rebate']         },
+  production: { ehs:['edu_rate','incident','env_viol','risk_assess','chem_manage','waste_rate'], pipa:['consent_rate','leak'],                     fair:['pay_delay','std_contract']                              },
+  rd:         { ehs:['edu_rate','chem_manage'],                                        pipa:['consent_rate','leak','train_rate','pia_done','retention'], fair:[]                                                  },
+  sales:      { ehs:['edu_rate'],                                                      pipa:['consent_rate','leak','third_party'],                  fair:['std_contract','fair_edu','doc_issue','rebate','dom_abuse'] },
+  hr:         { ehs:['edu_rate','incident'],                                           pipa:['consent_rate','leak','train_rate','retention'],       fair:[]                                                        },
+  finance:    { ehs:['edu_rate'],                                                      pipa:['consent_rate','leak','retention'],                    fair:['std_contract','fair_edu']                               },
+};
+
+const db = {};
+TEAMS.forEach(t => {
+  db[t.id] = {
+    ehs:  {metrics:{}, memo:'', savedAt:null},
+    pipa: {metrics:{}, memo:'', savedAt:null},
+    fair: {metrics:{}, memo:'', savedAt:null},
+  };
+});
+
+// 샘플 데이터
+(function seed() {
+  function set(tid, cat, metrics, memo, savedAt) {
+    db[tid][cat].metrics = metrics;
+    db[tid][cat].memo    = memo;
+    db[tid][cat].savedAt = savedAt;
+  }
+  set('purchase',   'ehs',  {edu_rate:92, incident:0},                                              '',                          '2025-03-07 09:12');
+  set('purchase',   'pipa', {consent_rate:100, third_party:0},                                      '',                          '2025-03-07 09:15');
+  set('purchase',   'fair', {pay_delay:0, std_contract:100, doc_issue:100, rebate:0},               '서면 1건 소급 처리 예정',   '2025-03-07 09:18');
+  set('production', 'ehs',  {edu_rate:76, incident:3, env_viol:1, risk_assess:65, chem_manage:90, waste_rate:2}, '3라인 위험성평가 진행 중', '2025-03-06 14:30');
+  set('production', 'pipa', {consent_rate:98, leak:0},                                              '',                          '2025-03-06 14:35');
+  set('production', 'fair', {pay_delay:2, std_contract:88},                                         '협력사 2곳 지연, 사유서 징구 예정', '2025-03-06 14:40');
+  set('rd',         'ehs',  {edu_rate:95, chem_manage:100},                                         '',                          '2025-03-07 11:00');
+  set('rd',         'pipa', {consent_rate:100, leak:0, train_rate:100, pia_done:2, retention:0},    '임상데이터 영향평가 완료',  '2025-03-07 11:05');
+  set('sales',      'ehs',  {edu_rate:85},                                                           '',                          '2025-03-05 16:00');
+  set('sales',      'pipa', {consent_rate:97, leak:0, third_party:0},                               '',                          '2025-03-05 16:05');
+  set('sales',      'fair', {std_contract:94, fair_edu:88, doc_issue:96, rebate:0, dom_abuse:0},    '',                          '2025-03-05 16:10');
+})();
+
+let activeTeam = TEAMS[0].id;
+let activeCat  = 'ehs';
+
+// ── 헬퍼 ──
+function getActiveItems(tid, catId) {
+  const ids = teamActive[tid][catId] || [];
+  return ALL_METRICS[catId].items.filter(m => ids.includes(m.id));
+}
+
+function getScore(tid, catId) {
+  const items = getActiveItems(tid, catId);
+  if (!items.length) return null;
+  const data = db[tid][catId].metrics;
+  let scored = 0, total = 0;
+  items.forEach(m => {
+    const v = data[m.id];
+    if (v === undefined || v === '') return;
+    const n = parseFloat(v);
+    if (isNaN(n)) return;
+    total += 100;
+    if (m.good === null) { scored += 100; return; }
+    if (m.invert) scored += n <= m.good ? 100 : (m.warn !== undefined && n <= m.warn ? 60 : 10);
+    else          scored += n >= m.good ? 100 : (n >= m.warn ? 60 : 10);
+  });
+  return total ? Math.round(scored / total * 100) : null;
+}
+
+function getOverall(tid) {
+  const sc = ['ehs','pipa','fair'].map(c => getScore(tid, c)).filter(s => s !== null);
+  return sc.length ? Math.round(sc.reduce((a,b)=>a+b,0)/sc.length) : null;
+}
+
+function dotCls(s)   { return s===null?'dot-e':s>=85?'dot-g':s>=65?'dot-y':'dot-r'; }
+function colorOf(s)  { return s>=85?'var(--green)':s>=65?'var(--yellow)':'var(--red)'; }
+function sbarFill(s) { return s>=85?'sf-g':s>=65?'sf-y':'sf-r'; }
+
+function statusHtml(m, val) {
+  if (val === '' || val === undefined) return '<span class="sp sp-n">—</span>';
+  const n = parseFloat(val);
+  if (isNaN(n)) return '<span class="sp sp-n">—</span>';
+  if (m.good === null) return '<span class="sp sp-g">기록</span>';
+  let lv;
+  if (m.invert) lv = n <= m.good ? 'g' : (m.warn !== undefined && n <= m.warn ? 'y' : 'r');
+  else          lv = n >= m.good ? 'g' : (n >= m.warn ? 'y' : 'r');
+  return '<span class="sp sp-' + lv + '">' + {g:'양호',y:'주의',r:'위반'}[lv] + '</span>';
+}
+
+function nowStr() {
+  return new Date().toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+
+function showToast(msg) {
+  document.getElementById('toastMsg').textContent = msg;
+  var t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2500);
+}
+
+// ── 팀 입력 렌더 ──
+function renderTeamSidebar() {
+  document.getElementById('teamSidebar').innerHTML = TEAMS.map(function(t) {
+    var ov = getOverall(t.id);
+    var hasAny = ['ehs','pipa','fair'].some(function(c){ return db[t.id][c].savedAt; });
+    var sub = ov !== null ? ov+'점' : (hasAny ? '부분 입력' : '미입력');
+    return '<div class="team-item ' + (t.id===activeTeam?'active':'') + '" onclick="selectTeam(\'' + t.id + '\')">' +
+      '<div class="team-avatar" style="background:' + t.bg + ';color:' + t.color + '">' + t.emoji + '</div>' +
+      '<div class="team-info"><div class="team-name-s">' + t.name + '</div><div class="team-status-s">' + sub + '</div></div>' +
+      '<div class="dot ' + dotCls(ov) + '"></div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderInputPanel() {
+  var team = TEAMS.find(function(t){ return t.id === activeTeam; });
+  var cats = Object.values(ALL_METRICS);
+
+  var tabsHtml = cats.map(function(cat) {
+    var hasItems = getActiveItems(team.id, cat.id).length > 0;
+    var actCls   = activeCat === cat.id ? 'act-' + cat.id : '';
+    var inactCls = !hasItems ? 'inactive-tab' : '';
+    var tag      = !hasItems ? '<span style="font-size:10px;color:var(--text-muted)">(미적용)</span>' : '';
+    return '<button class="cat-tab ' + actCls + ' ' + inactCls + '" onclick="selectCat(\'' + cat.id + '\')">' +
+      '<span class="cdot" style="background:' + cat.color + '"></span>' + cat.label + tag +
+    '</button>';
+  }).join('');
+
+  var panelsHtml = cats.map(function(cat) {
+    var data  = db[team.id][cat.id];
+    var items = getActiveItems(team.id, cat.id);
+    var score = getScore(team.id, cat.id);
+    var body;
+
+    if (!items.length) {
+      body = '<div class="no-metrics">이 팀에 적용된 ' + cat.label + ' 항목이 없습니다.<br>' +
+             '<span style="font-size:11px">⚙️ 항목 설정 탭에서 추가할 수 있습니다.</span></div>';
+    } else {
+      var rows = items.map(function(m) {
+        var val = (data.metrics[m.id] !== undefined) ? data.metrics[m.id] : '';
+        return '<div class="metric-row">' +
+          '<div>' +
+            '<div class="metric-name">' + m.name + '</div>' +
+            '<div class="metric-hint">' + m.hint + '</div>' +
+            '<div class="metric-formula-tag">' + m.formula + '</div>' +
+          '</div>' +
+          '<div class="minput-wrap">' +
+            '<input class="minput" type="number" min="0" step="' + (m.unit==='%'?'0.1':'1') + '"' +
+            ' value="' + val + '" placeholder="—"' +
+            ' data-team="' + team.id + '" data-cat="' + cat.id + '" data-mid="' + m.id + '"' +
+            ' oninput="onMetricInput(this)">' +
+            '<span class="munit">' + m.unit + '</span>' +
+          '</div>' +
+          '<div class="mstatus" id="ms-' + team.id + '-' + cat.id + '-' + m.id + '">' + statusHtml(m, val) + '</div>' +
+        '</div>';
+      }).join('');
+      body = rows +
+        '<div class="memo-row">' +
+          '<textarea class="memo-input" placeholder="특이사항, 사유, 조치계획..."' +
+          ' data-team="' + team.id + '" data-cat="' + cat.id + '"' +
+          ' oninput="onMemoInput(this)">' + data.memo + '</textarea>' +
+        '</div>';
+    }
+
+    var scoreTxt = score !== null ? score + '점' : '—';
+    var color    = score !== null ? colorOf(score) : 'var(--text-muted)';
+    return '<div class="cat-panel ' + (activeCat===cat.id?'active':'') + '" id="panel-' + cat.id + '">' +
+      '<div class="cat-panel-header ' + cat.cls + '">' +
+        '<div>' +
+          '<div class="cat-label-h ' + cat.cls + '">' + cat.label + '</div>' +
+          '<div class="cat-formula-sub">' + items.length + '개 항목 적용 중</div>' +
+        '</div>' +
+        '<span class="cat-score-badge" style="color:' + color + '" id="cscore-' + cat.id + '">' + scoreTxt + '</span>' +
+      '</div>' +
+      '<div class="metrics-grid">' + body + '</div>' +
+    '</div>';
+  }).join('');
+
+  var savedAt  = db[team.id][activeCat].savedAt;
+  var saveInfo = savedAt ? ' &nbsp;|&nbsp; 마지막 저장: <b>' + savedAt + '</b>' : '';
+
+  document.getElementById('inputPanel').innerHTML =
+    '<div class="panel-header">' +
+      '<div class="panel-team-info">' +
+        '<div class="panel-avatar" style="background:' + team.bg + ';color:' + team.color + '">' + team.emoji + '</div>' +
+        '<div>' +
+          '<div class="panel-team-name">' + team.name + '</div>' +
+          '<div class="panel-team-sub">컴플라이언스 실적 입력 — 월간 자체 점검</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="panel-period">📅 ' + new Date().getFullYear() + '년 ' + (new Date().getMonth()+1) + '월</div>' +
+    '</div>' +
+    '<div class="cat-tabs">' + tabsHtml + '</div>' +
+    panelsHtml +
+    '<div class="save-row">' +
+      '<div class="save-info">입력 후 저장하면 Compliance팀 대시보드에 반영됩니다.' + saveInfo + '</div>' +
+      '<button class="btn-save" onclick="saveData()">💾 저장하기</button>' +
+    '</div>';
+}
+
+function onMetricInput(input) {
+  var team = input.dataset.team, cat = input.dataset.cat, mid = input.dataset.mid;
+  db[team][cat].metrics[mid] = input.value;
+  var m  = ALL_METRICS[cat].items.find(function(x){ return x.id === mid; });
+  var el = document.getElementById('ms-' + team + '-' + cat + '-' + mid);
+  if (el) el.innerHTML = statusHtml(m, input.value);
+  var score = getScore(team, cat);
+  var sb    = document.getElementById('cscore-' + cat);
+  if (sb) {
+    sb.textContent = score !== null ? score + '점' : '—';
+    sb.style.color = score !== null ? colorOf(score) : 'var(--text-muted)';
+  }
+}
+
+function onMemoInput(ta) { db[ta.dataset.team][ta.dataset.cat].memo = ta.value; }
+function selectTeam(id)  { activeTeam = id; renderTeamSidebar(); renderInputPanel(); }
+function selectCat(id)   { activeCat  = id; renderInputPanel(); }
+function saveData() {
+  db[activeTeam][activeCat].savedAt = nowStr();
+  showToast(TEAMS.find(function(t){return t.id===activeTeam;}).name + ' ' + ALL_METRICS[activeCat].label + ' 저장 완료');
+  renderTeamSidebar();
+  renderInputPanel();
+  document.getElementById('topbarTime').textContent = '저장: ' + nowStr();
+}
+
+// ── 항목 설정 렌더 ──
+function renderSettings() {
+  document.getElementById('settingsBody').innerHTML = TEAMS.map(function(t) {
+    var total = Object.values(teamActive[t.id]).flat().length;
+    var catsHtml = Object.entries(ALL_METRICS).map(function(entry) {
+      var catId = entry[0], cat = entry[1];
+      var activeIds = teamActive[t.id][catId] || [];
+      var itemsHtml = cat.items.map(function(m) {
+        var checked = activeIds.includes(m.id);
+        return '<label class="metric-check ' + (checked?'checked':'') + '" id="lbl-' + t.id + '-' + catId + '-' + m.id + '">' +
+          '<input type="checkbox" ' + (checked?'checked':'') +
+          ' onchange="toggleMetric(\'' + t.id + '\',\'' + catId + '\',\'' + m.id + '\',this)">' +
+          '<div class="mc-info">' +
+            '<div class="mc-name">' + m.name + '</div>' +
+            '<div class="mc-hint">' + m.hint + ' · ' + m.unit + '</div>' +
+            '<div class="mc-formula">' + m.formula + '</div>' +
+          '</div>' +
+        '</label>';
+      }).join('');
+      return '<div class="cat-config-section">' +
+        '<div class="cat-config-title">' +
+          '<span style="width:8px;height:8px;border-radius:50%;display:inline-block;background:' + cat.color + '"></span>' +
+          '<span style="color:' + cat.color + '">' + cat.label + '</span>' +
+        '</div>' +
+        '<div class="metrics-checklist">' + itemsHtml + '</div>' +
+      '</div>';
+    }).join('');
+
+    return '<div class="team-config-card">' +
+      '<div class="team-config-header" onclick="toggleTeamConfig(\'' + t.id + '\')">' +
+        '<div class="team-avatar" style="background:' + t.bg + ';color:' + t.color + '">' + t.emoji + '</div>' +
+        '<div class="tch-name">' + t.name + '</div>' +
+        '<div class="tch-count" id="tcc-count-' + t.id + '">' + total + '개 항목 적용 중</div>' +
+        '<div class="tch-toggle" id="tcc-toggle-' + t.id + '">▶</div>' +
+      '</div>' +
+      '<div class="team-config-body" id="tcb-' + t.id + '">' + catsHtml + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function toggleTeamConfig(tid) {
+  document.getElementById('tcb-' + tid).classList.toggle('open');
+  document.getElementById('tcc-toggle-' + tid).classList.toggle('open');
+}
+
+function toggleMetric(tid, catId, mid, cb) {
+  var arr = teamActive[tid][catId];
+  if (cb.checked) { if (!arr.includes(mid)) arr.push(mid); }
+  else            { teamActive[tid][catId] = arr.filter(function(x){ return x !== mid; }); }
+  var lbl = document.getElementById('lbl-' + tid + '-' + catId + '-' + mid);
+  if (lbl) lbl.classList.toggle('checked', cb.checked);
+  var total = Object.values(teamActive[tid]).flat().length;
+  var cnt   = document.getElementById('tcc-count-' + tid);
+  if (cnt)  cnt.textContent = total + '개 항목 적용 중';
+}
+
+function applySettings() {
+  showToast('설정이 저장되었습니다. 팀 입력 화면에 반영됩니다.');
+}
+
+// ── 대시보드 렌더 ──
+function renderDashboard() {
+  renderSummary(); renderTeamTable(); renderHeatmap(); renderAlerts();
+  document.getElementById('dashPeriod').textContent =
+    new Date().getFullYear() + '년 ' + (new Date().getMonth()+1) + '월 기준 · 조회: ' + nowStr();
+}
+
+function renderSummary() {
+  var submitted = TEAMS.filter(function(t){ return ['ehs','pipa','fair'].some(function(c){ return db[t.id][c].savedAt; }); }).length;
+  var scores    = TEAMS.map(function(t){ return getOverall(t.id); }).filter(function(s){ return s !== null; });
+  var avg       = scores.length ? Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length) : null;
+  var redCnt    = scores.filter(function(s){return s<65;}).length;
+  var warnCnt   = scores.filter(function(s){return s>=65&&s<85;}).length;
+  document.getElementById('summaryRow').innerHTML =
+    '<div class="summary-card">' +
+      '<div class="sc-label">입력 완료 팀</div>' +
+      '<div class="sc-value" style="color:var(--pipa)">' + submitted + '<span style="font-size:15px;color:var(--text-muted)">/' + TEAMS.length + '</span></div>' +
+      '<div class="sc-sub">전체 팀 대비 제출 현황</div>' +
+    '</div>' +
+    '<div class="summary-card">' +
+      '<div class="sc-label">전체 평균 점수</div>' +
+      '<div class="sc-value" style="color:' + (avg===null?'var(--text-muted)':colorOf(avg)) + '">' + (avg!==null?avg+'점':'—') + '</div>' +
+      '<div class="sc-sub">입력 팀 기준 종합 평균</div>' +
+    '</div>' +
+    '<div class="summary-card">' +
+      '<div class="sc-label">위반 주의 팀</div>' +
+      '<div class="sc-value" style="color:var(--red)">' + redCnt + '</div>' +
+      '<div class="sc-sub">종합 65점 미만</div>' +
+    '</div>' +
+    '<div class="summary-card">' +
+      '<div class="sc-label">관찰 필요 팀</div>' +
+      '<div class="sc-value" style="color:var(--yellow)">' + warnCnt + '</div>' +
+      '<div class="sc-sub">종합 65~84점 구간</div>' +
+    '</div>';
+}
+
+function sbarHtml(score) {
+  if (score === null) return '<span class="na-cell">미입력</span>';
+  var cls = sbarFill(score);
+  return '<div class="sbar-wrap">' +
+    '<div class="sbar"><div class="sbar-fill ' + cls + '" style="width:' + score + '%"></div></div>' +
+    '<span class="snum" style="color:' + colorOf(score) + '">' + score + '</span>' +
+  '</div>';
+}
+
+function renderTeamTable() {
+  document.getElementById('teamTableBody').innerHTML = TEAMS.map(function(t) {
+    var ehs  = getScore(t.id,'ehs'), pipa = getScore(t.id,'pipa'), fair = getScore(t.id,'fair');
+    var ov   = getOverall(t.id);
+    var last = ['ehs','pipa','fair'].map(function(c){return db[t.id][c].savedAt;}).filter(Boolean).sort().pop();
+    return '<tr>' +
+      '<td><div class="tname-cell">' +
+        '<div class="sm-avatar" style="background:' + t.bg + ';color:' + t.color + '">' + t.emoji + '</div>' + t.name +
+      '</div></td>' +
+      '<td>' + sbarHtml(ehs)  + '</td>' +
+      '<td>' + sbarHtml(pipa) + '</td>' +
+      '<td>' + sbarHtml(fair) + '</td>' +
+      '<td>' + sbarHtml(ov)   + '</td>' +
+      '<td style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text-muted)">' + (last||'—') + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function renderHeatmap() {
+  var CATS = ['ehs','pipa','fair'];
+  var header = '<div style="display:grid;grid-template-columns:90px repeat(3,1fr);gap:5px;margin-bottom:5px;">' +
+    '<div></div>' +
+    CATS.map(function(c){
+      var cat = ALL_METRICS[c];
+      return '<div style="text-align:center;font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:' + cat.color + ';padding:4px">' +
+        cat.label.split(' ')[0] + '</div>';
+    }).join('') +
+  '</div>';
+  var rows = TEAMS.map(function(t) {
+    var cells = CATS.map(function(c) {
+      var s   = getScore(t.id, c);
+      var cls = s===null?'hm-e':s>=85?'hm-g':s>=65?'hm-y':'hm-r';
+      return '<div class="hm-cell ' + cls + '" title="' + t.name + ' ' + ALL_METRICS[c].label + ': ' + (s!==null?s+'점':'미입력') + '">' +
+        (s !== null ? s : '미입력') + '</div>';
+    }).join('');
+    return '<div style="display:grid;grid-template-columns:90px repeat(3,1fr);gap:5px;align-items:center;margin-bottom:5px;">' +
+      '<div style="font-size:11px;color:var(--text-soft)">' + t.emoji + ' ' + t.name + '</div>' + cells +
+    '</div>';
+  }).join('');
+  document.getElementById('heatmapWrap').innerHTML = header + rows;
+}
+
+function renderAlerts() {
+  var alerts = [];
+  TEAMS.forEach(function(t) {
+    if (!['ehs','pipa','fair'].some(function(c){ return db[t.id][c].savedAt; }))
+      alerts.push({lv:'y', icon:'⏰', text:'<b>' + t.name + '</b>이 아직 이번 달 수치를 입력하지 않았습니다.', time:'미입력'});
+  });
+  TEAMS.forEach(function(t) {
+    Object.entries(ALL_METRICS).forEach(function(entry) {
+      var catId = entry[0], cat = entry[1];
+      getActiveItems(t.id, catId).forEach(function(m) {
+        var v = db[t.id][catId].metrics[m.id];
+        if (v === undefined || v === '') return;
+        var n = parseFloat(v); if (isNaN(n)) return;
+        var bad = m.invert ? (m.warn !== undefined && n > m.warn) : (m.warn !== undefined && n < m.warn);
+        if (bad) alerts.push({
+          lv:'r', icon:'🚨',
+          text: '<b>' + TEAMS.find(function(x){return x.id===t.id;}).name + '</b> · ' + cat.label + ': <b>' + m.name + '</b> 주의 (' + n + m.unit + ')',
+          time: db[t.id][catId].savedAt || ''
+        });
+      });
+    });
+  });
+  var el = document.getElementById('alertList');
+  if (!alerts.length) {
+    el.innerHTML = '<div class="empty-state"><div style="font-size:24px;margin-bottom:6px">✅</div>현재 주의 항목이 없습니다.</div>';
+    return;
+  }
+  el.innerHTML = '<div class="alert-list">' + alerts.slice(0,8).map(function(a) {
+    return '<div class="alert-item al-' + a.lv + '">' +
+      '<div class="al-icon">' + a.icon + '</div>' +
+      '<div class="al-text">' + a.text + '</div>' +
+      '<div class="al-time">' + a.time + '</div>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+
+// ── 뷰 전환 ──
+function switchMode(mode, btn) {
+  document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
+  document.querySelectorAll('.mode-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('view-' + mode).classList.add('active');
+  btn.classList.add('active');
+  if (mode === 'dashboard') renderDashboard();
+  if (mode === 'settings')  renderSettings();
+}
+
+// INIT
+renderTeamSidebar();
+renderInputPanel();
+renderDashboard();
+</script>
+</body>
+</html>
