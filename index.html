@@ -335,6 +335,64 @@ body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: va
   display: flex; align-items: center; gap: 7px;
 }
 .toast.show { transform: translateY(0); opacity: 1; }
+
+/* ── 로딩 오버레이 ── */
+.loading-overlay {
+  position: fixed; inset: 0; background: rgba(240,242,245,.85);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 999; gap: 14px;
+}
+.loading-overlay.hidden { display: none; }
+.spinner {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 3px solid var(--pipa-border); border-top-color: var(--pipa);
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-msg { font-size: 13px; color: var(--text-soft); font-weight: 500; }
+
+/* ── URL 미설정 배너 ── */
+.config-banner {
+  background: #fffbeb; border-bottom: 2px solid var(--fair-border);
+  padding: 10px 24px; display: flex; align-items: center; gap: 10px;
+  font-size: 12px; color: var(--fair-text); font-weight: 500;
+}
+.config-banner b { color: var(--fair); }
+.config-banner.hidden { display: none; }
+.btn-config-open {
+  margin-left: auto; padding: 5px 14px; border-radius: 6px; border: 1.5px solid var(--fair-border);
+  background: #fff; color: var(--fair); font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: 'Noto Sans KR', sans-serif; transition: all .15s;
+}
+.btn-config-open:hover { background: var(--fair-bg); }
+
+/* ── PA 설정 모달 ── */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.35);
+  display: flex; align-items: center; justify-content: center; z-index: 500;
+}
+.modal-backdrop.hidden { display: none; }
+.modal-card {
+  background: #fff; border-radius: 12px; padding: 28px;
+  width: 540px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,.18);
+}
+.modal-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.modal-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6; }
+.modal-field { margin-bottom: 14px; }
+.modal-field label { display: block; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-soft); margin-bottom: 5px; }
+.modal-field input {
+  width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 7px;
+  font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text); outline: none;
+  background: var(--bg);
+}
+.modal-field input:focus { border-color: var(--pipa); background: var(--pipa-bg); }
+.modal-field .hint { font-size: 10px; color: var(--text-muted); margin-top: 4px; line-height: 1.6; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+.btn-modal-cancel { padding: 8px 18px; border-radius: 7px; border: 1.5px solid var(--border); background: #fff; color: var(--text-soft); font-family: 'Noto Sans KR', sans-serif; font-size: 13px; cursor: pointer; }
+.btn-modal-save { padding: 8px 22px; border-radius: 7px; border: none; background: var(--pipa); color: #fff; font-family: 'Noto Sans KR', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+
+/* 토스트 에러 */
+.toast.error { border-color: var(--red-border); color: var(--red); }
 </style>
 </head>
 <body>
@@ -416,6 +474,42 @@ body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: va
   </div>
 </div>
 
+
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loadingMsg">SharePoint에서 데이터를 불러오는 중...</div>
+</div>
+
+<div class="config-banner hidden" id="configBanner">
+  ⚠️ Power Automate URL이 설정되지 않았습니다. <b>저장/조회 기능이 작동하지 않습니다.</b>
+  <button class="btn-config-open" onclick="openConfigModal()">⚙️ URL 설정</button>
+</div>
+
+<div class="modal-backdrop hidden" id="configModal">
+  <div class="modal-card">
+    <div class="modal-title">⚙️ Power Automate 연동 설정</div>
+    <div class="modal-sub">
+      Power Automate에서 생성한 HTTP 트리거 URL을 입력하세요.<br>
+      입력된 URL은 이 브라우저에만 저장(localStorage)됩니다.
+    </div>
+    <div class="modal-field">
+      <label>저장 Flow URL (Save)</label>
+      <input type="url" id="cfg-save-url" placeholder="https://prod-xx.westus.logic.azure.com/...">
+      <div class="hint">📌 트리거: "HTTP 요청을 수신할 때" → 저장 → SharePoint List 항목 만들기/업데이트</div>
+    </div>
+    <div class="modal-field">
+      <label>조회 Flow URL (Load)</label>
+      <input type="url" id="cfg-load-url" placeholder="https://prod-xx.westus.logic.azure.com/...">
+      <div class="hint">📌 트리거: "HTTP 요청을 수신할 때" → SharePoint List 쿼리 → JSON 응답 반환<br>
+      요청 파라미터: <code style="background:var(--bg);padding:1px 5px;border-radius:3px;font-size:10px">{ "yearMonth": "2026-03" }</code></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeConfigModal()">취소</button>
+      <button class="btn-modal-save" onclick="saveConfig()">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast">✅ <span id="toastMsg"></span></div>
 
 <script>
@@ -485,21 +579,7 @@ TEAMS.forEach(function(t) {
   };
 });
 
-// 샘플 데이터 주입
-(function() {
-  function s(tid,cat,metrics,memo,at) { db[tid][cat].metrics=metrics; db[tid][cat].memo=memo||''; db[tid][cat].savedAt=at; }
-  s('purchase',  'ehs',  {edu_rate:92,incident:0},                                          '',                      '03/07 09:12');
-  s('purchase',  'pipa', {consent_rate:100,third_party:0},                                  '',                      '03/07 09:15');
-  s('purchase',  'fair', {pay_delay:0,std_contract:100,doc_issue:100,rebate:0},             '서면 1건 소급 예정',    '03/07 09:18');
-  s('production','ehs',  {edu_rate:76,incident:3,env_viol:1,risk_assess:65,chem_manage:90,waste_rate:2},'3라인 위험성평가 진행 중','03/06 14:30');
-  s('production','pipa', {consent_rate:98,leak:0},                                          '',                      '03/06 14:35');
-  s('production','fair', {pay_delay:2,std_contract:88},                                     '협력사 2곳 지연',       '03/06 14:40');
-  s('rd',        'ehs',  {edu_rate:95,chem_manage:100},                                     '',                      '03/07 11:00');
-  s('rd',        'pipa', {consent_rate:100,leak:0,train_rate:100,pia_done:2,retention:0},   '임상데이터 영향평가 완료','03/07 11:05');
-  s('sales',     'ehs',  {edu_rate:85},                                                      '',                      '03/05 16:00');
-  s('sales',     'pipa', {consent_rate:97,leak:0,third_party:0},                            '',                      '03/05 16:05');
-  s('sales',     'fair', {std_contract:94,fair_edu:88,doc_issue:96,rebate:0,dom_abuse:0},   '',                      '03/05 16:10');
-})();
+// (샘플 데이터 제거됨 — loadData()로 SharePoint List에서 조회)
 
 var activeTeam = 'purchase';
 var activeCat  = 'ehs';
@@ -695,16 +775,214 @@ function onMemoInput(ta) {
 function selectTeam(id) { activeTeam = id; renderTeamSidebar(); renderInputPanel(); }
 function selectCat(id)  { activeCat  = id; renderInputPanel(); }
 
-function saveData() {
-  if (db[activeTeam] && db[activeTeam][activeCat]) {
-    db[activeTeam][activeCat].savedAt = nowStr();
+// ══════════════════════════════════════════
+// Power Automate 연동 설정
+// ══════════════════════════════════════════
+var PA_CONFIG_KEY = 'compliance_pa_config';
+
+function loadConfig() {
+  try {
+    var stored = localStorage.getItem(PA_CONFIG_KEY);
+    return stored ? JSON.parse(stored) : { saveUrl: '', loadUrl: '' };
+  } catch(e) { return { saveUrl: '', loadUrl: '' }; }
+}
+
+function openConfigModal() {
+  var cfg = loadConfig();
+  document.getElementById('cfg-save-url').value = cfg.saveUrl || '';
+  document.getElementById('cfg-load-url').value = cfg.loadUrl || '';
+  document.getElementById('configModal').classList.remove('hidden');
+}
+
+function closeConfigModal() {
+  document.getElementById('configModal').classList.add('hidden');
+}
+
+function saveConfig() {
+  var cfg = {
+    saveUrl: document.getElementById('cfg-save-url').value.trim(),
+    loadUrl: document.getElementById('cfg-load-url').value.trim()
+  };
+  localStorage.setItem(PA_CONFIG_KEY, JSON.stringify(cfg));
+  checkConfigBanner();
+  closeConfigModal();
+  showToast('URL 설정이 저장되었습니다.');
+}
+
+function checkConfigBanner() {
+  var cfg = loadConfig();
+  var banner = document.getElementById('configBanner');
+  if (!cfg.saveUrl || !cfg.loadUrl) {
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
   }
-  var tname = '';
-  TEAMS.forEach(function(t){ if(t.id===activeTeam) tname=t.name; });
-  showToast(tname + ' ' + ALL_METRICS[activeCat].label + ' 저장 완료');
+}
+
+// ── 로딩 오버레이 ──
+function showLoading(msg) {
+  document.getElementById('loadingMsg').textContent = msg || '처리 중...';
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+}
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.add('hidden');
+}
+
+// ══════════════════════════════════════════
+// loadData() — SharePoint List에서 이번 달 데이터 조회
+// ══════════════════════════════════════════
+function getYearMonth() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+async function loadData() {
+  var cfg = loadConfig();
+  if (!cfg.loadUrl) {
+    // URL 미설정: 빈 db로 시작
+    initEmptyDb();
+    renderAll();
+    return;
+  }
+
+  showLoading('SharePoint에서 이번 달 데이터를 불러오는 중...');
+  try {
+    var response = await fetch(cfg.loadUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ yearMonth: getYearMonth() })
+    });
+
+    if (!response.ok) throw new Error('조회 실패: ' + response.status);
+
+    var rows = await response.json();
+    // rows 예시: [{ teamId, categoryId, metricId, metricValue, memo, savedAt }, ...]
+    initEmptyDb();
+    populateDbFromRows(rows);
+  } catch(err) {
+    console.error('[loadData]', err);
+    showToastError('데이터 조회 실패: ' + err.message + ' — 로컬 상태로 표시합니다.');
+    initEmptyDb();
+  } finally {
+    hideLoading();
+    renderAll();
+  }
+}
+
+function initEmptyDb() {
+  db = {};
+  TEAMS.forEach(function(t) {
+    db[t.id] = {
+      ehs:  { metrics:{}, memo:'', savedAt:null },
+      pipa: { metrics:{}, memo:'', savedAt:null },
+      fair: { metrics:{}, memo:'', savedAt:null }
+    };
+  });
+}
+
+function populateDbFromRows(rows) {
+  // Power Automate가 반환하는 배열을 db에 반영
+  // 예상 row 구조: { teamId, categoryId, metricId, metricValue, memo, savedAt }
+  if (!Array.isArray(rows)) return;
+  rows.forEach(function(row) {
+    var tid = row.teamId || row.TeamId;
+    var cat = row.categoryId || row.CategoryId;
+    var mid = row.metricId   || row.MetricId;
+    var val = row.metricValue !== undefined ? row.metricValue : row.MetricValue;
+    var memo    = row.memo    || row.Memo    || '';
+    var savedAt = row.savedAt || row.SavedAt || '';
+
+    if (!db[tid] || !db[tid][cat]) return;
+    if (mid !== undefined && mid !== null && mid !== '') {
+      db[tid][cat].metrics[mid] = val;
+    }
+    if (memo)    db[tid][cat].memo    = memo;
+    if (savedAt) db[tid][cat].savedAt = savedAt;
+  });
+}
+
+function renderAll() {
   renderTeamSidebar();
   renderInputPanel();
-  document.getElementById('topbarTime').textContent = '저장: ' + nowStr();
+  renderDashboard();
+}
+
+// ══════════════════════════════════════════
+// saveData() — Power Automate → SharePoint List
+// ══════════════════════════════════════════
+async function saveData() {
+  var cfg = loadConfig();
+  var team = null;
+  TEAMS.forEach(function(t){ if(t.id === activeTeam) team = t; });
+  var cat   = ALL_METRICS[activeCat];
+  var items = getActiveItems(activeTeam, activeCat);
+  var catData = db[activeTeam][activeCat];
+
+  // payload 구성
+  var metrics = [];
+  items.forEach(function(m) {
+    var raw = catData.metrics[m.id];
+    if (raw !== undefined && raw !== '') {
+      metrics.push({
+        metricId:   m.id,
+        metricName: m.name,
+        value:      Number(raw),
+        unit:       m.unit
+      });
+    }
+  });
+
+  var payload = {
+    yearMonth:    getYearMonth(),
+    teamId:       activeTeam,
+    teamName:     team ? team.name : activeTeam,
+    categoryId:   activeCat,
+    categoryName: cat ? cat.label : activeCat,
+    memo:         catData.memo || '',
+    savedAt:      new Date().toISOString(),
+    metrics:      metrics
+  };
+
+  // URL 미설정 시 로컬만 저장
+  if (!cfg.saveUrl) {
+    db[activeTeam][activeCat].savedAt = nowStr();
+    showToastError('⚠️ URL 미설정 — 로컬에만 저장됩니다. URL을 설정하면 SharePoint에 기록됩니다.');
+    renderTeamSidebar();
+    renderInputPanel();
+    return;
+  }
+
+  showLoading('SharePoint List에 저장 중...');
+  try {
+    var response = await fetch(cfg.saveUrl, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload)
+    });
+
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+
+    db[activeTeam][activeCat].savedAt = nowStr();
+    document.getElementById('topbarTime').textContent = '저장: ' + nowStr();
+    showToast((team ? team.name : activeTeam) + ' ' + (cat ? cat.label : '') + ' 저장 완료 ✓');
+    renderTeamSidebar();
+    renderInputPanel();
+
+  } catch(err) {
+    console.error('[saveData]', err);
+    showToastError('저장 실패: ' + err.message);
+  } finally {
+    hideLoading();
+  }
+}
+
+function showToastError(msg) {
+  document.getElementById('toastMsg').textContent = msg;
+  var t = document.getElementById('toast');
+  t.classList.add('show', 'error');
+  setTimeout(function(){
+    t.classList.remove('show', 'error');
+  }, 4000);
 }
 
 // ══════════════════════════════════════════
@@ -901,10 +1179,11 @@ function switchMode(mode) {
   if (mode === 'settings')  renderSettings();
 }
 
+// ══════════════════════════════════════════
 // INIT
-renderTeamSidebar();
-renderInputPanel();
-renderDashboard();
+// ══════════════════════════════════════════
+checkConfigBanner();
+loadData(); // SharePoint List에서 이번 달 데이터 조회 후 전체 렌더
 </script>
 </body>
 </html>
